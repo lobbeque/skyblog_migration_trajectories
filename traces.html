@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8">
+	<title>Migrations Skyblogs</title>
+	<script src="https://d3js.org/d3.v7.min.js"></script>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css">
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+
+	<link href="layout.css" rel="stylesheet"/>
+
+	<style>	
+
+		.x-axis text {
+			font-family:"NeueKabel-Bold";
+			font-size: 14px;
+			color: #ffffff;
+		}
+
+		.x-axis path {
+			stroke-width: 0;
+		}
+
+		.x-axis line {
+			stroke: #ffffff;
+			stroke-width: 1px;
+		}		
+
+		.grid  line {
+			stroke: #000000;
+			stroke-opacity: 0.1;
+			stroke-dasharray: 5;
+		}
+
+		.grid  path {
+		  	stroke-width: 0;
+		}
+
+		.segment {
+		  	stroke-width: 1.5;
+		}
+
+		.migration {
+		  	stroke: #000000;
+		  	stroke-width: 1;
+		  	fill: none;
+		}		
+
+		.unarchived {
+			fill: #aaa;
+		}
+
+		.explanation {
+			fill: #000;
+		}
+
+		.pre_explanation {
+			fill: #000;
+		}
+
+		.trace_id {
+			text-anchor: end;
+			font-size: 6px;
+		}		
+
+	</style>
+</head>
+<body>
+
+	<div id="chart"></div>
+	<div class="tooltip"></div>
+
+	<div id="overlay_page">
+
+		<div id="timeline"></div>
+
+		<div id="filterPanel" class="collapsed">
+			<button class="button" id="toggleBtn"><i class="fa-solid fa-bars"></i></button>
+			<button class="button" id="zoomBtn"><i class="fa-solid fa-maximize"></i></button>
+
+			<div>
+				<div class="filterGroup">
+					Corpus :
+					<select id="filterByCorpus">
+						<option selected value="A">All</option>					
+						<option value="L">L</option>
+						<option value="R">R</option>
+					</select>
+				</div>
+
+				<div class="filterGroup">
+					Lifespan max (month) :
+					<br>
+					<input type="range" id="max_duration" min="0" max="159" value="159" oninput="this.nextElementSibling.value = this.value"/>
+					<output>159</output>
+				</div>
+
+				<div class="filterGroup">
+					Lifespan min (month) :
+					<br>
+					<input type="range" id="min_duration" min="0" max="159" value="0" oninput="this.nextElementSibling.value = this.value"/>
+					<output>0</output>
+				</div>				
+
+				<div class="filterGroup">
+					Entanglement gradiant :
+					<select id="filterByFst">
+						<option selected value="all">All types</option>					
+						<option value="offline">Strongly entangled</option>
+						<option value="online">Weakly entangled</option>						
+					</select>
+				</div>
+
+				<div class="filterGroup">
+					Migration's endpoint :
+					<select id="filterByLst">
+						<option selected value="all">All types</option>					
+						<option value="unarchived">Unarchived Skyblog</option>
+						<option value="archived">Archived Skyblog</option>
+						<option value="out">Out of Skyblog</option>						
+					</select>
+				</div>
+
+				<div class="filterGroup">
+					Migration's reason :
+					<select id="filterByMig" multiple>
+						<option selected value="all">All types</option>					
+						<option value="évolution identité">Evolution of identity</option>
+						<option value="le temps à passé">Time has passed</option>
+						<option value="déploiement">Deployment</option>
+						<option value="professionnalisation">Professionalisation</option>
+						<option value="envie de changement">Desire for change</option>												
+						<option value="désintérêt pour le précédent">Disinterest in the current blog</option>
+						<option value="blog trop compliqué à gérer">Current blog too cumbersome to manage</option>	
+						<option value="nouvelle passion">New passion</option>
+						<option value="nouvelle fiction">New fiction</option>
+						<option value="changement de communauté">Community change</option>
+						<option value="volonté collective">Collective intent</option>
+						<option value="fermeture skyblog">End of Skyblog in 2023</option>
+						<option value="meilleure plateforme">Better platforms are available</option>
+						<option value="désintérêt pour skyblog">Disinterest in Skyblog</option>
+						<option value="nouvelle saison">Serialisation</option>
+						<option value="mal être">Unease</option>
+						<option value="piratage">Hacking</option>
+						<option value="défis">Challenge</option>
+					</select>
+				</div>								
+
+				<div class="filterGroup">
+					Sort by :
+					<select id="sortBy">
+						<option selected value="start">Creation date</option>
+						<option value="duration">Lifespan</option>
+					</select>				
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="overlay_footer">
+		<div id="overlay_footer_empty_div"></div>
+		<footer>Skyblog Archives BnF  Migration trajectories - <script>document.write(/\d{4}/.exec(Date())[0])</script></footer>
+	</div>
+</body>
+
+<script src="controlers.js"></script>
+<script type="text/javascript">
+
+	const map_migration_to_color = {
+		"maman" : "#b7e6a5",
+		"amitié" : "#f7feae",
+		"chat" : "#f7feae",
+		"journal" : "#b7e6a5",
+		"pensées" : "#7ccba2",
+		"critique" : "#7ccba2",
+		"militant" : "#7ccba2",
+		"professionnel" : "#b7e6a5",
+		"galerie" : "#089099",
+		"passion" : "#46aea0",
+		"dessin" : "#089099",
+		"fan" : "#46aea0",
+		"laboratoire d'écriture" : "#00718b",
+		"poésie" : "#00718b",
+		"fan fiction" : "#045275",
+		"fiction" : "#045275",
+		"jeux de rôle" : "#045275",
+		"troll" : "#aaaaaa",
+		"NA" : "#aaaaaa"}
+
+	const map_type_of_blog = {
+		"maman" : "offline",
+		"amitié" : "offline",
+		"chat" : "offline",
+		"journal" : "offline",
+		"pensées" : "online",
+		"critique" : "online",
+		"militant" : "online",
+		"professionnel" : "online",
+		"galerie" : "online",
+		"passion" : "online",
+		"dessin" : "online",
+		"fan" : "online",
+		"laboratoire d'écriture" : "online",
+		"poésie" : "online",
+		"fan fiction" : "online",
+		"fiction" : "online",
+		"jeux de rôle" : "online",
+		"troll" : "all",
+		"NA" : "all"}		
+
+	const parseDate = d3.timeParse("%d/%m/%Y");
+
+	fetch('./traces.json')
+    	.then(response => response.json())
+    	.then(data => setup(data))
+    	.catch(error => console.error('Error fetching JSON:', error));
+
+    var all_traces = [];
+    var filtered_traces = [];
+    var filtered_segments = []
+    var filtered_migrations = []
+
+    /* dimensions */
+
+	const width  = window.innerWidth
+	const height = window.innerHeight
+	const margin  = {top:10,right:10,bottom:10,left:10}
+	const padding = {top:50,bottom:10}
+
+	const innerWidth  = width  - margin.left - margin.right
+	const innerHeight = height - margin.bottom - margin.top
+
+	document.getElementById("overlay_page").style.width = innerWidth  + "px"; 
+	document.getElementById("chart").style.width   = innerWidth  + "px";
+	document.getElementById("chart").style.height  = innerHeight + "px"; 
+	document.getElementById("chart").style.top     = margin.top  + "px";
+
+	/* scales */
+
+	var xScale,yScale;
+
+	/* chart */
+
+	const chart_svg = d3.select("#chart").append("svg")
+	const chart_g = chart_svg.append("g").attr("transform",`translate(${margin.left},0)`)
+	const chart_axis_x = chart_g.append("g").attr("class","x-axis");
+	const chart_grid_x = chart_g.append("g").attr("class","grid");
+	const tooltip = d3.select(".tooltip");
+
+	/* timeline */
+
+	const timeline_svg = d3.select("#timeline").append("svg")
+	const timeline_g = timeline_svg.append("g").attr("transform","translate(0,35)")	
+	const timeline_axis_x = timeline_g.append("g").attr("class","x-axis");
+
+	/* traces */
+
+	const traces_g = chart_g.append("g");
+	const traces_roots = d3.symbol().type(d3.symbolTriangle).size(8)
+	const traces_outsiders  = d3.symbol().type(d3.symbolCircle).size(10)
+	const traces_unarchived = d3.symbol().type(d3.symbolCross).size(10)
+	const traces_explanations = d3.symbol().type(d3.symbolDiamond).size(10)
+
+	/* draw functions */
+
+	function drawGrid(scale_x) {
+		chart_grid_x.call(d3.axisTop(scale_x).ticks(10).tickSize(-innerHeight).tickFormat(""))
+	}
+
+	function drawTimeline(scale_x) {
+		timeline_axis_x.call(d3.axisTop(scale_x))
+	}
+
+	function getX1(e,scale_x) {
+		return scale_x(e.fst)
+	}
+
+	function getX2(e,scale_x) {
+		return scale_x(e.lst)
+	}	
+
+	function getXMig(e,scale_x) {
+		return scale_x(e.date)
+	}	
+
+	function getXPreMig(e,scale_x) {
+		return scale_x(e.pre_migration_date)
+	}	
+
+	function getXPostMig(e,scale_x) {
+		return scale_x(e.post_migration_date)
+	}		
+
+	function drawArc(m,scale_x,scale_y) {
+		let x = getXMig(m,scale_x);
+		let y1 = scale_y(m.source_id)
+		let y2 = scale_y(m.target_id)
+		
+		let dy = Math.abs(y2 - y1);
+		let offset = dy * 0.4;
+		let x_arc = x + offset;
+		let y_arc = (y1 + y2) / 2;
+
+		let path_arc = `
+		  M ${x},${y1}
+		  Q ${x_arc},${y_arc}
+		    ${x},${y2}
+		`
+		return path_arc
+	}	
+
+	function resetTraces(scale_x,scale_y) {
+		// Update the segments
+		traces_g
+			.selectAll(".segment")
+			.transition().duration(600)	
+			.attr("x1",s => getX1(s,scale_x))
+			.attr("x2",s => getX2(s,scale_x))
+			.attr("y1",s => scale_y(s.source_id))
+			.attr("y2",s => scale_y(s.source_id))
+
+		// Update the migrations
+		traces_g
+			.selectAll(".migration")
+			.transition().duration(600)
+			.attr("d", m => drawArc(m,scale_x,scale_y))	
+
+		// Update the ids 
+		traces_g
+			.selectAll(".trace_id")
+			.transition().duration(600)	
+			.attr("x", s => getX1(s,scale_x) - 5)
+		   	.attr("y", s => scale_y(s.source_id))
+
+		// Update the roots
+		traces_g
+			.selectAll("path.root")
+			.transition().duration(600)
+			.attr("transform", s => `translate(${getX1(s,scale_x)}, ${scale_y(s.source_id)})`)	
+
+		// Update the outsiders
+		traces_g
+			.selectAll("path.outsider")
+			.transition().duration(600)
+			.attr("transform", s => `translate(${getX1(s,scale_x)}, ${scale_y(s.source_id)})`)	
+
+		// Update the unarchived
+		traces_g
+			.selectAll("path.unarchived")
+			.transition().duration(600)
+			.attr("transform", s => `translate(${getX1(s,scale_x)}, ${scale_y(s.source_id)})`)		
+
+		// Update the explanations
+		traces_g
+			.selectAll("path.explanation")
+			.transition().duration(600)
+			.attr("transform", s => `translate(${getX2(s,scale_x)}, ${scale_y(s.source_id)})`)										
+
+		// Update the pre_explanation
+		traces_g
+			.selectAll("path.pre_explanation")
+			.transition().duration(600)
+			.attr("transform", s => `translate(${getXPreMig(s,scale_x)}, ${scale_y(s.source_id)})`)	
+
+		// Update the pre_explanation
+		traces_g
+			.selectAll("path.post_explanation")
+			.transition().duration(600)
+			.attr("transform", s => `translate(${getXPostMig(s,scale_x)}, ${scale_y(s.source_id)})`)					
+
+	}	
+
+	function drawTraces(scale_x,scale_y) {	
+
+		const segments = traces_g.selectAll(".segment").data(filtered_segments)
+		const migrations = traces_g.selectAll(".migration").data(filtered_migrations)
+		const roots = traces_g.selectAll("path.root").data(filtered_segments.filter(s => s.source_status == "root"))
+		const ids = traces_g.selectAll(".trace_id").data(filtered_segments.filter(s => s.source_status == "root"))
+		const outsiders = traces_g.selectAll(".outsider").data(filtered_segments.filter(s => s.source_status == "out"))
+		const unarchived = traces_g.selectAll(".unarchived").data(filtered_segments.filter(s => s.source_status == "unarchived"))
+		const explanations = traces_g.selectAll(".explanation").data(filtered_segments.filter(s => s.migration != "non" && s.migration != "NA"))
+		const pre_explanations = traces_g.selectAll(".pre_explanation").data(filtered_segments.filter(s => s.pre_migration == "oui"))
+		const post_explanations = traces_g.selectAll(".post_explanation").data(filtered_segments.filter(s => s.post_migration == "oui"))
+
+		// Append segments to the chart
+		segments.enter()
+				.append("line")
+				.attr("class","segment")
+				.merge(segments)
+				.attr("x1",s => getX1(s,scale_x))
+				.attr("x2",s => getX2(s,scale_x))
+				.attr("y1",s => scale_y(s.source_id))
+				.attr("y2",s => scale_y(s.source_id))
+				.style("stroke", s => map_migration_to_color[s.source_type])
+		segments.exit().remove();
+
+		// Append unarchived plateforms to the chart
+		unarchived
+		     .enter()
+			 .append("path")
+			 .attr("class","unarchived")
+			 .merge(unarchived)
+			 .transition().duration(600)
+			 .attr("d",traces_unarchived)
+			 .attr("transform", s => `translate(${getX1(s,scale_x)}, ${scale_y(s.source_id)})`)
+		unarchived.exit().remove();
+
+		// Append explanations to the chart
+		explanations
+		     .enter()
+			 .append("path")
+			 .attr("class","explanation")
+			 .merge(explanations)
+			 .transition().duration(600)
+			 .attr("d",traces_explanations)
+			 .attr("transform", s => `translate(${getX2(s,scale_x)}, ${scale_y(s.source_id)})`)
+		explanations.exit().remove();
+
+		pre_explanations
+		     .enter()
+			 .append("path")
+			 .attr("class","pre_explanation")
+			 .merge(pre_explanations)
+			 .transition().duration(600)
+			 .attr("d",traces_explanations)
+			 .attr("transform", s => `translate(${getXPreMig(s,scale_x)}, ${scale_y(s.source_id)})`)
+		pre_explanations.exit().remove();		
+
+		post_explanations
+		     .enter()
+			 .append("path")
+			 .attr("class","post_explanation")
+			 .merge(post_explanations)
+			 .transition().duration(600)
+			 .attr("d",traces_explanations)
+			 .attr("transform", s => `translate(${getXPostMig(s,scale_x)}, ${scale_y(s.source_id)})`)
+		post_explanations.exit().remove();					
+
+		// Append migrations to the chart
+		migrations.enter()
+				.append("path")
+				.attr("class","migration")
+				.merge(migrations)	
+				.attr("d", m => drawArc(m,scale_x,scale_y))
+		migrations.exit().remove()
+
+		// Append traces' roots to the chart
+		roots.enter()
+			 .append("path")
+			 .attr("class","root")
+			 .merge(roots)
+			 .transition().duration(600)
+			 .attr("d",traces_roots)
+			 .style("fill", s => map_migration_to_color[s.source_type])
+			 .attr("transform", s => `translate(${getX1(s,scale_x)}, ${scale_y(s.source_id)}) rotate(-30)`)
+		roots.exit().remove();
+
+		// Append external plateforms to the chart
+		outsiders
+		     .enter()
+			 .append("path")
+			 .attr("class","outsider")
+			 .merge(outsiders)
+			 .transition().duration(600)
+			 .attr("d",traces_outsiders)
+			 .attr("transform", s => `translate(${getX1(s,scale_x)}, ${scale_y(s.source_id)})`)
+		outsiders.exit().remove();
+
+		// Append traces' ids to the chart
+		ids.enter()
+		   .append("text")
+		   .attr("class","trace_id")
+		   .merge(ids)
+		   .transition().duration(600)
+		   .attr("dy", "0.35em")
+		   .attr("x", s => getX1(s,scale_x) - 5)
+		   .attr("y", s => scale_y(s.source_id))
+		   .text(s => s.source_id.split("_")[0])
+		ids.exit().remove();
+										
+	}
+
+	function draw(scale_x,scale_y,init) {
+		drawTimeline(scale_x)
+		drawGrid(scale_x)
+		// Are the traces drawn for the first time?
+		init ? drawTraces(scale_x,scale_y) : resetTraces(scale_x,scale_y);
+	}
+
+	/* filter functions */
+
+	function filterAndSort(init = true) {	
+
+		const corpus  = d3.select("#filterByCorpus").property("value");
+		const fstType = d3.select("#filterByFst").property("value");
+		const lstType = d3.select("#filterByLst").property("value");
+		const filterByMig = document.querySelector("#filterByMig");
+		var migType = new Set(Array.from(filterByMig.options).filter(function (option) {
+			return option.selected;
+		}).map(function (option) {
+			return option.value;
+		}));	
+		const maxDuration = parseInt(document.getElementById("max_duration").value)
+		const minDuration = parseInt(document.getElementById("min_duration").value)
+		const sortBy  = d3.select("#sortBy").property("value");
+
+		if (all_traces.length == 0) return;
+
+		// filter corpus
+		filtered_traces = all_traces.filter(t => {
+			if (corpus != "A" && t.corpus != corpus) return false; 
+			return true;
+		})	
+
+		// filter duration
+		filtered_traces = filtered_traces.filter(t => {
+			if ((t.duration/30) < minDuration || (t.duration/30) > maxDuration) return false; 
+			return true;
+		})	
+
+		// filter type of blog
+		filtered_traces = filtered_traces.filter(t => {
+			if (fstType != "all" && map_type_of_blog[t.fst_type] != fstType) return false; 
+			return true;
+		})		
+
+
+		// filter end space type
+		filtered_traces = filtered_traces.filter(t => {
+			if (lstType != "all" && t.lst_type != lstType) return false; 
+			return true;
+		})	
+
+		// filter migration type
+		filtered_traces = filtered_traces.filter(t => {
+			var intersec = migType.intersection(new Set(t.explanations))
+			if (!migType.has("all") && migType.size > 0 && intersec.size == 0) return false; 
+			return true;
+		})			
+		
+		switch(sortBy) {
+			case "start" :
+				filtered_traces.sort((a,b) => d3.ascending(a.fst,b.fst)); break;
+			case "duration" :
+				filtered_traces.sort((a,b) => d3.descending(a.duration,b.duration)); break;
+		}
+
+		filtered_segments = filtered_traces.flatMap(t => t.segments.map(s => ({...s})))
+		filtered_migrations = filtered_traces.flatMap(t => t.migrations.map(m => ({...m})))
+		filtered_segments_id = new Set(filtered_segments.map(e => e.source_id))
+		yScale = d3.scalePoint().domain([...filtered_segments_id]).range([padding.top,innerHeight + 3000]).padding(0.5);
+
+		draw(xScale,yScale,init)
+
+	}
+
+	/* controlers */
+
+	const zoom = d3.zoom()
+		.scaleExtent([0,10])
+	  	.on("zoom",(event) => {
+	    		let zoom_x = event.transform.rescaleX(xScale);
+	    		traces_g.attr("transform", event.transform);
+				drawTimeline(zoom_x)
+				drawGrid(zoom_x)	    		
+	  	});
+
+	/* setup the viz and scale */
+
+	function setup(data) {	
+		all_traces = data.map((d) => {
+			d.fst = parseDate(d.fst)
+			d.lst = parseDate(d.lst)
+			d.segments = d.segments.map(s => {
+				s.fst = parseDate(s.fst)
+				s.lst = parseDate(s.lst)
+				if ("pre_migration_date" in s) {
+					s.pre_migration_date = parseDate(s.pre_migration_date)
+				}
+				if ("post_migration_date" in s) {
+					s.post_migration_date = parseDate(s.post_migration_date)
+				}				
+				return s
+			})
+			d.migrations = d.migrations.map(m => {
+				m.date = parseDate(m.date)
+				return m
+			})
+			return d
+		})	
+		// init zoom
+		chart_svg.call(zoom);
+		// init scale
+		xScale = d3.scaleTime()
+	   		.domain([
+				d3.min(all_traces, trace => trace.fst),
+				d3.max(all_traces, trace => trace.lst)])
+			.range([0,innerWidth]);			
+		filterAndSort()
+	}
+	
+
+</script>
+
+</html>
